@@ -65,10 +65,15 @@ export default function ArticlePanel({ onSave, defaultTopic = '' }: Props) {
   const handleSave = async () => {
     if (!result) return
     setSaving(true)
-    const title = selectedTitle !== null ? result.titleIdeas[selectedTitle] : result.titleIdeas[0]
-    await onSave(title, '記事作成', result)
-    setSaving(false)
-    setSaved(true)
+    try {
+      const title = selectedTitle !== null ? result.titleIdeas[selectedTitle] : result.titleIdeas[0]
+      await onSave(title, '記事作成', result)
+      setSaved(true)
+    } catch (err: any) {
+      alert('保存に失敗しました: ' + (err?.message ?? 'エラーが発生しました'))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

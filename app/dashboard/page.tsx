@@ -67,12 +67,20 @@ export default function DashboardPage() {
   }
 
   const handleSave = async (title: string, type: string, content: any) => {
+    if (!userId) {
+      throw new Error('ログインセッションが無効です。ページを再読み込みしてください。')
+    }
     const { data, error } = await supabase
       .from('saved_items')
       .insert({ title, type, content, user_id: userId, status: '未着手' })
       .select()
       .single()
-    if (!error && data) setSavedItems(prev => [data, ...prev])
+    if (error) {
+      // テーブル未作成・RLSポリシー違反・ネットワークエラーなど
+      console.error('[saved_items] insert error:', error.code, error.message, error.details)
+      throw new Error(error.message ?? '保存に失敗しました')
+    }
+    if (data) setSavedItems(prev => [data, ...prev])
   }
 
   const handleStatusChange = async (id: string, status: string) => {

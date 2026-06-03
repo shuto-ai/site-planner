@@ -57,9 +57,14 @@ export default function AppDesignPanel({ onSave }: Props) {
   const handleSave = async () => {
     if (!result) return
     setSaving(true)
-    await onSave(appName, 'アプリ設計', result)
-    setSaving(false)
-    setSaved(true)
+    try {
+      await onSave(appName, 'アプリ設計', result)
+      setSaved(true)
+    } catch (err: any) {
+      alert('保存に失敗しました: ' + (err?.message ?? 'エラーが発生しました'))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

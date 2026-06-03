@@ -174,12 +174,17 @@ export default function AiConsultPanel({ onSave, onTaskify, onNavigateArticle, d
   const handleSave = async () => {
     if (!result) return
     setSaving(true)
-    await onSave(result.summary || '無題の会議', 'AI相談', {
-      ...result,
-      meetingLog: agents.map(a => ({ id: a.id, name: a.name, title: a.title, message: a.message })),
-    })
-    setSaving(false)
-    setSaved(true)
+    try {
+      await onSave(result.summary || '無題の会議', 'AI相談', {
+        ...result,
+        meetingLog: agents.map(a => ({ id: a.id, name: a.name, title: a.title, message: a.message })),
+      })
+      setSaved(true)
+    } catch (err: any) {
+      alert('保存に失敗しました: ' + (err?.message ?? 'エラーが発生しました'))
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleCopyCC = () => {
