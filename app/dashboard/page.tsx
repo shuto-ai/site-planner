@@ -39,9 +39,10 @@ export default function DashboardPage() {
   const [userId,           setUserId]          = useState('')
   const [savedItems,       setSavedItems]      = useState<SavedItem[]>([])
   const [pendingPrompt,    setPendingPrompt]   = useState('')
-  const [pendingTasks,     setPendingTasks]    = useState<GeneratedTask[]>([])
-  const [taskContext,      setTaskContext]     = useState('')
-  const [pendingTopic,     setPendingTopic]    = useState('')
+  const [pendingTasks,        setPendingTasks]       = useState<GeneratedTask[]>([])
+  const [taskContext,         setTaskContext]        = useState('')
+  const [pendingTopic,        setPendingTopic]       = useState('')
+  const [currentTaskSessionId,setCurrentTaskSessionId] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -97,11 +98,25 @@ export default function DashboardPage() {
     setMode('ai-consult')
   }
 
-  // AI相談 → タスク化
-  const handleTaskify = (tasks: GeneratedTask[], context: string) => {
+  // AI相談 → タスク化（DB セッション作成 → TaskPanel に sessionId を渡す）
+  const handleTaskify = async (tasks: GeneratedTask[], context: string) => {
     setPendingTasks(tasks)
     setTaskContext(context)
-    setMode('tasks')
+    setCurrentTaskSessionId(null)   // reset while creating
+    setMode('tasks')                // switch immediately for UX
+
+    if (userId) {
+      const { data } = await supabase
+        .from('task_sessions')
+        .insert({
+          user_id: userId,
+          context,
+          tasks: tasks.map((t, i) => ({ ...t, id: String(i), status: '未着手', result: null })),
+        })
+        .select('id')
+        .single()
+      if (data?.id) setCurrentTaskSessionId(data.id)
+    }
   }
 
   // AI相談 → 記事作成へ
@@ -197,9 +212,11 @@ export default function DashboardPage() {
         {mode === 'app-design' && <AppDesignPanel  {...commonProps} />}
         {mode === 'tasks'      && (
           <TaskPanel
-            key={pendingTasks.map(t => t.name).join('|')}
             tasks={pendingTasks}
             context={taskContext}
+            sessionId={currentTaskSessionId ?? undefined}
+            userId={userId || undefined}
+            onSave={handleSave}
           />
         )}
         {mode === 'saved'      && (
