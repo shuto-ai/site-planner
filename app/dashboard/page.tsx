@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import AiConsultPanel from './_components/AiConsultPanel'
+import ProjectsPanel from './_components/ProjectsPanel'
 import ArticlePanel from './_components/ArticlePanel'
 import AppDesignPanel from './_components/AppDesignPanel'
 import MonetizePanel from './_components/MonetizePanel'
@@ -21,9 +22,10 @@ type SavedItem = {
   created_at: string
 }
 
-type Mode = 'ai-consult' | 'article' | 'app-design' | 'monetize' | 'tasks' | 'saved' | 'prompts'
+type Mode = 'ai-consult' | 'article' | 'app-design' | 'monetize' | 'tasks' | 'saved' | 'prompts' | 'projects'
 
 const MENU: { mode: Mode; icon: string; label: string }[] = [
+  { mode: 'projects',   icon: '📁', label: '案件管理' },
   { mode: 'ai-consult', icon: '🤖', label: 'AI相談' },
   { mode: 'monetize',   icon: '💰', label: '収益化相談' },
   { mode: 'article',    icon: '📝', label: '記事作成' },
@@ -209,6 +211,7 @@ export default function DashboardPage() {
             onNavigateArticle={handleNavigateArticle}
           />
         )}
+        {mode === 'projects'   && <ProjectsPanel userId={userId} />}
         {mode === 'monetize'   && <MonetizePanel onSave={handleSave} onTaskify={handleTaskify} />}
         {mode === 'article'    && (
           <ArticlePanel
