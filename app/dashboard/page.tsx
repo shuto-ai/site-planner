@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import AiConsultPanel from './_components/AiConsultPanel'
 import ArticlePanel from './_components/ArticlePanel'
 import AppDesignPanel from './_components/AppDesignPanel'
-import ShiftPanel from './_components/ShiftPanel'
 import SavedItemsPanel from './_components/SavedItemsPanel'
 import PromptsPanel from './_components/PromptsPanel'
 import RightPanel from './_components/RightPanel'
@@ -20,13 +19,12 @@ type SavedItem = {
   created_at: string
 }
 
-type Mode = 'ai-consult' | 'article' | 'app-design' | 'shift' | 'saved' | 'prompts'
+type Mode = 'ai-consult' | 'article' | 'app-design' | 'saved' | 'prompts'
 
 const MENU: { mode: Mode; icon: string; label: string }[] = [
   { mode: 'ai-consult', icon: '🤖', label: 'AI相談' },
   { mode: 'article',    icon: '📝', label: '記事作成' },
   { mode: 'app-design', icon: '⚙️', label: 'アプリ設計' },
-  { mode: 'shift',      icon: '📅', label: 'シフト作成' },
   { mode: 'saved',      icon: '💾', label: '保存した案件' },
   { mode: 'prompts',    icon: '✨', label: 'プロンプト集' },
 ]
@@ -161,7 +159,6 @@ export default function DashboardPage() {
         )}
         {mode === 'article'    && <ArticlePanel    {...commonProps} />}
         {mode === 'app-design' && <AppDesignPanel  {...commonProps} />}
-        {mode === 'shift'      && <ShiftPanel      {...commonProps} />}
         {mode === 'saved'      && (
           <SavedItemsPanel
             items={savedItems}
