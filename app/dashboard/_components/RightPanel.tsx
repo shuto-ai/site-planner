@@ -4,7 +4,7 @@ type SavedItem = {
   id: string
   title: string
   type: string
-  status: '未着手' | '作業中' | '完了'
+  status: '未着手' | '作業中' | '完了' | '保留'
   content: any
   created_at: string
 }
@@ -16,23 +16,25 @@ type Props = {
 }
 
 const STATUS_CONFIG = {
-  '未着手': { cls: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
-  '作業中': { cls: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400' },
-  '完了': { cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+  '未着手': { cls: 'bg-slate-100 text-slate-600',    dot: 'bg-slate-400' },
+  '作業中': { cls: 'bg-amber-100 text-amber-700',    dot: 'bg-amber-400' },
+  '完了':   { cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+  '保留':   { cls: 'bg-purple-100 text-purple-600',  dot: 'bg-purple-400' },
 }
 
 const TYPE_ICON: Record<string, string> = {
-  'AI相談': '🤖',
+  'AI相談':   '🤖',
   '記事作成': '📝',
   'アプリ設計': '⚙️',
-  'シフト作成': '📅',
+  '収益化相談': '💰',
 }
 
 export default function RightPanel({ savedItems, onNavigateToSaved, onStatusChange }: Props) {
   const inProgress = savedItems.filter(i => i.status === '作業中')
   const notStarted = savedItems.filter(i => i.status === '未着手').length
-  const done = savedItems.filter(i => i.status === '完了').length
-  const recent = savedItems.slice(0, 6)
+  const done       = savedItems.filter(i => i.status === '完了').length
+  const held       = savedItems.filter(i => i.status === '保留').length
+  const recent     = savedItems.slice(0, 6)
 
   return (
     <aside className="w-64 bg-white border-l border-slate-200 flex flex-col overflow-hidden">
@@ -44,11 +46,12 @@ export default function RightPanel({ savedItems, onNavigateToSaved, onStatusChan
         {/* Status summary */}
         <div>
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">ステータス概要</p>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5">
             {[
-              { label: '未着手', count: notStarted, color: 'text-slate-700 bg-slate-50 border-slate-200' },
-              { label: '作業中', count: inProgress.length, color: 'text-amber-700 bg-amber-50 border-amber-200' },
-              { label: '完了', count: done, color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+              { label: '未着手', count: notStarted,       color: 'text-slate-700 bg-slate-50 border-slate-200'      },
+              { label: '作業中', count: inProgress.length,color: 'text-amber-700 bg-amber-50 border-amber-200'      },
+              { label: '完了',   count: done,              color: 'text-emerald-700 bg-emerald-50 border-emerald-200'},
+              { label: '保留',   count: held,              color: 'text-purple-600 bg-purple-50 border-purple-200'   },
             ].map(({ label, count, color }) => (
               <div key={label} className={`rounded-xl border p-2 text-center ${color}`}>
                 <p className="text-lg font-bold leading-none">{count}</p>
@@ -106,6 +109,7 @@ export default function RightPanel({ savedItems, onNavigateToSaved, onStatusChan
                             <option value="未着手">未着手</option>
                             <option value="作業中">作業中</option>
                             <option value="完了">完了</option>
+                            <option value="保留">保留</option>
                           </select>
                         </div>
                       </div>

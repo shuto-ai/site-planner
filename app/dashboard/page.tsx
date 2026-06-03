@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import AiConsultPanel from './_components/AiConsultPanel'
 import ArticlePanel from './_components/ArticlePanel'
 import AppDesignPanel from './_components/AppDesignPanel'
+import MonetizePanel from './_components/MonetizePanel'
+import TaskPanel, { type GeneratedTask } from './_components/TaskPanel'
 import SavedItemsPanel from './_components/SavedItemsPanel'
 import PromptsPanel from './_components/PromptsPanel'
 import RightPanel from './_components/RightPanel'
@@ -14,27 +16,32 @@ type SavedItem = {
   id: string
   title: string
   type: string
-  status: '未着手' | '作業中' | '完了'
+  status: '未着手' | '作業中' | '完了' | '保留'
   content: any
   created_at: string
 }
 
-type Mode = 'ai-consult' | 'article' | 'app-design' | 'saved' | 'prompts'
+type Mode = 'ai-consult' | 'article' | 'app-design' | 'monetize' | 'tasks' | 'saved' | 'prompts'
 
 const MENU: { mode: Mode; icon: string; label: string }[] = [
   { mode: 'ai-consult', icon: '🤖', label: 'AI相談' },
+  { mode: 'monetize',   icon: '💰', label: '収益化相談' },
   { mode: 'article',    icon: '📝', label: '記事作成' },
   { mode: 'app-design', icon: '⚙️', label: 'アプリ設計' },
+  { mode: 'tasks',      icon: '✅', label: 'タスク実行' },
   { mode: 'saved',      icon: '💾', label: '保存した案件' },
   { mode: 'prompts',    icon: '✨', label: 'プロンプト集' },
 ]
 
 export default function DashboardPage() {
-  const [mode, setMode] = useState<Mode>('ai-consult')
-  const [userEmail, setUserEmail] = useState('')
-  const [userId, setUserId] = useState('')
-  const [savedItems, setSavedItems] = useState<SavedItem[]>([])
-  const [pendingPrompt, setPendingPrompt] = useState('')
+  const [mode,             setMode]           = useState<Mode>('ai-consult')
+  const [userEmail,        setUserEmail]       = useState('')
+  const [userId,           setUserId]          = useState('')
+  const [savedItems,       setSavedItems]      = useState<SavedItem[]>([])
+  const [pendingPrompt,    setPendingPrompt]   = useState('')
+  const [pendingTasks,     setPendingTasks]    = useState<GeneratedTask[]>([])
+  const [taskContext,      setTaskContext]     = useState('')
+  const [pendingTopic,     setPendingTopic]    = useState('')
   const router = useRouter()
   const supabase = createClient()
 
@@ -69,7 +76,9 @@ export default function DashboardPage() {
 
   const handleStatusChange = async (id: string, status: string) => {
     await supabase.from('saved_items').update({ status }).eq('id', id)
-    setSavedItems(prev => prev.map(item => item.id === id ? { ...item, status: status as SavedItem['status'] } : item))
+    setSavedItems(prev => prev.map(item =>
+      item.id === id ? { ...item, status: status as SavedItem['status'] } : item
+    ))
   }
 
   const handleDelete = async (id: string) => {
@@ -82,15 +91,30 @@ export default function DashboardPage() {
     router.push('/login')
   }
 
+  // AI相談 → プロンプト集からのプロンプト送り込み
   const handleUsePrompt = (text: string) => {
     setPendingPrompt(text)
     setMode('ai-consult')
+  }
+
+  // AI相談 → タスク化
+  const handleTaskify = (tasks: GeneratedTask[], context: string) => {
+    setPendingTasks(tasks)
+    setTaskContext(context)
+    setMode('tasks')
+  }
+
+  // AI相談 → 記事作成へ
+  const handleNavigateArticle = (topic: string) => {
+    setPendingTopic(topic)
+    setMode('article')
   }
 
   const commonProps = { onSave: handleSave }
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
+
       {/* ── Left Sidebar ── */}
       <aside className="w-56 bg-slate-900 flex flex-col flex-shrink-0">
         {/* Logo */}
@@ -107,7 +131,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {MENU.map(({ mode: m, icon, label }) => (
             <button
               key={m}
@@ -120,12 +144,15 @@ export default function DashboardPage() {
             >
               <span className="text-base leading-none">{icon}</span>
               <span className="flex-1 text-left">{label}</span>
+              {m === 'tasks' && pendingTasks.length > 0 && (
+                <span className={`text-xs rounded-full px-1.5 py-0.5 font-bold ${
+                  mode === m ? 'bg-white/20 text-white' : 'bg-indigo-700 text-indigo-300'
+                }`}>{pendingTasks.length}</span>
+              )}
               {m === 'saved' && savedItems.length > 0 && (
                 <span className={`text-xs rounded-full px-1.5 py-0.5 font-bold ${
                   mode === m ? 'bg-white/20 text-white' : 'bg-slate-700 text-slate-300'
-                }`}>
-                  {savedItems.length}
-                </span>
+                }`}>{savedItems.length}</span>
               )}
             </button>
           ))}
@@ -152,13 +179,29 @@ export default function DashboardPage() {
       <main className="flex-1 overflow-hidden flex flex-col min-w-0">
         {mode === 'ai-consult' && (
           <AiConsultPanel
-            {...commonProps}
             key={pendingPrompt}
             defaultInput={pendingPrompt}
+            onSave={handleSave}
+            onTaskify={handleTaskify}
+            onNavigateArticle={handleNavigateArticle}
           />
         )}
-        {mode === 'article'    && <ArticlePanel    {...commonProps} />}
+        {mode === 'monetize'   && <MonetizePanel   {...commonProps} />}
+        {mode === 'article'    && (
+          <ArticlePanel
+            key={pendingTopic}
+            defaultTopic={pendingTopic}
+            onSave={handleSave}
+          />
+        )}
         {mode === 'app-design' && <AppDesignPanel  {...commonProps} />}
+        {mode === 'tasks'      && (
+          <TaskPanel
+            key={pendingTasks.map(t => t.name).join('|')}
+            tasks={pendingTasks}
+            context={taskContext}
+          />
+        )}
         {mode === 'saved'      && (
           <SavedItemsPanel
             items={savedItems}
@@ -166,7 +209,7 @@ export default function DashboardPage() {
             onDelete={handleDelete}
           />
         )}
-        {mode === 'prompts' && (
+        {mode === 'prompts'    && (
           <PromptsPanel onUsePrompt={handleUsePrompt} />
         )}
       </main>

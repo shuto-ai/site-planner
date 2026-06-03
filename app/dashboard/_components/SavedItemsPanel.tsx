@@ -6,7 +6,7 @@ type SavedItem = {
   id: string
   title: string
   type: string
-  status: '未着手' | '作業中' | '完了'
+  status: '未着手' | '作業中' | '完了' | '保留'
   content: any
   created_at: string
 }
@@ -18,19 +18,20 @@ type Props = {
 }
 
 const STATUS_CONFIG = {
-  '未着手': { cls: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
-  '作業中': { cls: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400' },
-  '完了': { cls: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+  '未着手': { cls: 'bg-slate-100 text-slate-600',   dot: 'bg-slate-400' },
+  '作業中': { cls: 'bg-amber-100 text-amber-700',   dot: 'bg-amber-400' },
+  '完了':   { cls: 'bg-emerald-100 text-emerald-700',dot: 'bg-emerald-500' },
+  '保留':   { cls: 'bg-purple-100 text-purple-600', dot: 'bg-purple-400' },
 }
 
 const TYPE_ICON: Record<string, string> = {
-  'AI相談': '🤖',
+  'AI相談':   '🤖',
   '記事作成': '📝',
   'アプリ設計': '⚙️',
-  'シフト作成': '📅',
+  '収益化相談': '💰',
 }
 
-type FilterStatus = '全て' | '未着手' | '作業中' | '完了'
+type FilterStatus = '全て' | '未着手' | '作業中' | '完了' | '保留'
 
 export default function SavedItemsPanel({ items, onStatusChange, onDelete }: Props) {
   const [filter, setFilter] = useState<FilterStatus>('全て')
@@ -47,10 +48,11 @@ export default function SavedItemsPanel({ items, onStatusChange, onDelete }: Pro
   }
 
   const counts = {
-    '全て': items.length,
+    '全て':  items.length,
     '未着手': items.filter(i => i.status === '未着手').length,
     '作業中': items.filter(i => i.status === '作業中').length,
-    '完了': items.filter(i => i.status === '完了').length,
+    '完了':   items.filter(i => i.status === '完了').length,
+    '保留':   items.filter(i => i.status === '保留').length,
   }
 
   return (
@@ -63,7 +65,7 @@ export default function SavedItemsPanel({ items, onStatusChange, onDelete }: Pro
       <div className="flex-1 overflow-y-auto px-8 py-6">
         {/* Filter tabs */}
         <div className="flex gap-2 mb-6">
-          {(['全て', '未着手', '作業中', '完了'] as FilterStatus[]).map(status => (
+          {(['全て', '未着手', '作業中', '完了', '保留'] as FilterStatus[]).map(status => (
             <button
               key={status}
               onClick={() => setFilter(status)}
@@ -122,6 +124,7 @@ export default function SavedItemsPanel({ items, onStatusChange, onDelete }: Pro
                           <option value="未着手">未着手</option>
                           <option value="作業中">作業中</option>
                           <option value="完了">完了</option>
+                          <option value="保留">保留</option>
                         </select>
                         <button
                           onClick={() => setExpandedId(isExpanded ? null : item.id)}

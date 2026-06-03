@@ -12,6 +12,7 @@ type ArticleResult = {
 
 type Props = {
   onSave: (title: string, type: string, content: any) => Promise<void>
+  defaultTopic?: string
 }
 
 const SNS_TABS = [
@@ -20,8 +21,8 @@ const SNS_TABS = [
   { key: 'line', label: 'LINE', icon: '💬' },
 ] as const
 
-export default function ArticlePanel({ onSave }: Props) {
-  const [topic, setTopic] = useState('')
+export default function ArticlePanel({ onSave, defaultTopic = '' }: Props) {
+  const [topic, setTopic] = useState(defaultTopic)
   const [targetAudience, setTargetAudience] = useState('')
   const [keywords, setKeywords] = useState('')
   const [result, setResult] = useState<ArticleResult | null>(null)
