@@ -3,34 +3,40 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import AiConsultPanel from './_components/AiConsultPanel'
+import ArticlePanel from './_components/ArticlePanel'
+import AppDesignPanel from './_components/AppDesignPanel'
+import ShiftPanel from './_components/ShiftPanel'
+import SavedItemsPanel from './_components/SavedItemsPanel'
+import PromptsPanel from './_components/PromptsPanel'
+import RightPanel from './_components/RightPanel'
 
-type Project = {
+type SavedItem = {
   id: string
   title: string
-  genre: string
-  target: string
+  type: string
+  status: '未着手' | '作業中' | '完了'
+  content: any
   created_at: string
 }
 
-const GENRE_COLORS: { keyword: string; cls: string }[] = [
-  { keyword: '美容', cls: 'bg-pink-100 text-pink-700' },
-  { keyword: '副業', cls: 'bg-amber-100 text-amber-700' },
-  { keyword: '旅行', cls: 'bg-sky-100 text-sky-700' },
-  { keyword: '健康', cls: 'bg-green-100 text-green-700' },
-  { keyword: 'ビジネス', cls: 'bg-purple-100 text-purple-700' },
-  { keyword: '料理', cls: 'bg-orange-100 text-orange-700' },
-  { keyword: 'IT', cls: 'bg-cyan-100 text-cyan-700' },
+type Mode = 'ai-consult' | 'article' | 'app-design' | 'shift' | 'saved' | 'prompts'
+
+const MENU: { mode: Mode; icon: string; label: string }[] = [
+  { mode: 'ai-consult', icon: '🤖', label: 'AI相談' },
+  { mode: 'article',    icon: '📝', label: '記事作成' },
+  { mode: 'app-design', icon: '⚙️', label: 'アプリ設計' },
+  { mode: 'shift',      icon: '📅', label: 'シフト作成' },
+  { mode: 'saved',      icon: '💾', label: '保存した案件' },
+  { mode: 'prompts',    icon: '✨', label: 'プロンプト集' },
 ]
 
-function genreColor(genre: string) {
-  const hit = GENRE_COLORS.find(({ keyword }) => genre.includes(keyword))
-  return hit ? hit.cls : 'bg-indigo-100 text-indigo-700'
-}
-
 export default function DashboardPage() {
+  const [mode, setMode] = useState<Mode>('ai-consult')
   const [userEmail, setUserEmail] = useState('')
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState('')
+  const [savedItems, setSavedItems] = useState<SavedItem[]>([])
+  const [pendingPrompt, setPendingPrompt] = useState('')
   const router = useRouter()
   const supabase = createClient()
 
@@ -39,152 +45,141 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUserEmail(user.email ?? '')
-
-      const { data } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-
-      setProjects(data ?? [])
-      setLoading(false)
+      setUserId(user.id)
+      loadSavedItems(user.id)
     }
     init()
   }, [])
+
+  const loadSavedItems = async (uid: string) => {
+    const { data } = await supabase
+      .from('saved_items')
+      .select('*')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+    setSavedItems(data ?? [])
+  }
+
+  const handleSave = async (title: string, type: string, content: any) => {
+    const { data, error } = await supabase
+      .from('saved_items')
+      .insert({ title, type, content, user_id: userId, status: '未着手' })
+      .select()
+      .single()
+    if (!error && data) setSavedItems(prev => [data, ...prev])
+  }
+
+  const handleStatusChange = async (id: string, status: string) => {
+    await supabase.from('saved_items').update({ status }).eq('id', id)
+    setSavedItems(prev => prev.map(item => item.id === id ? { ...item, status: status as SavedItem['status'] } : item))
+  }
+
+  const handleDelete = async (id: string) => {
+    await supabase.from('saved_items').delete().eq('id', id)
+    setSavedItems(prev => prev.filter(item => item.id !== id))
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
   }
 
+  const handleUsePrompt = (text: string) => {
+    setPendingPrompt(text)
+    setMode('ai-consult')
+  }
+
+  const commonProps = { onSave: handleSave }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white text-xs font-bold tracking-tight">SP</span>
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
+      {/* ── Left Sidebar ── */}
+      <aside className="w-56 bg-slate-900 flex flex-col flex-shrink-0">
+        {/* Logo */}
+        <div className="px-5 py-5 border-b border-slate-700/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 bg-indigo-500 rounded-md flex items-center justify-center shadow-sm">
+              <span className="text-white text-xs font-black tracking-tighter">AI</span>
             </div>
-            <span className="text-xl font-bold text-slate-800">Site Planner</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="hidden sm:block text-sm text-slate-400">{userEmail}</span>
-            <button
-              onClick={handleLogout}
-              className="text-sm px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
-            >
-              ログアウト
-            </button>
+            <div>
+              <p className="text-white text-sm font-bold leading-tight">作業支援AI</p>
+              <p className="text-slate-500 text-xs leading-tight">Dashboard</p>
+            </div>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        {/* Page heading */}
-        <div className="flex items-end justify-between mb-8 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">プロジェクト一覧</h1>
-            <p className="text-slate-500 mt-1 text-sm">あなたのサイト企画を管理・実行しましょう</p>
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5">
+          {MENU.map(({ mode: m, icon, label }) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                mode === m
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <span className="text-base leading-none">{icon}</span>
+              <span className="flex-1 text-left">{label}</span>
+              {m === 'saved' && savedItems.length > 0 && (
+                <span className={`text-xs rounded-full px-1.5 py-0.5 font-bold ${
+                  mode === m ? 'bg-white/20 text-white' : 'bg-slate-700 text-slate-300'
+                }`}>
+                  {savedItems.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        {/* User info */}
+        <div className="px-4 py-4 border-t border-slate-700/60">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 bg-slate-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-xs font-bold">{userEmail.charAt(0).toUpperCase()}</span>
+            </div>
+            <p className="text-slate-400 text-xs truncate">{userEmail}</p>
           </div>
           <button
-            onClick={() => router.push('/projects/new')}
-            className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium shadow-sm transition-colors text-sm"
+            onClick={handleLogout}
+            className="w-full text-left text-xs text-slate-500 hover:text-slate-300 transition-colors px-1"
           >
-            <span className="text-base leading-none">＋</span>
-            新しいプロジェクト
+            ログアウト →
           </button>
         </div>
+      </aside>
 
-        {/* Stats bar */}
-        {!loading && projects.length > 0 && (
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            {[
-              { label: 'プロジェクト数', value: projects.length, color: 'text-slate-800' },
-              { label: 'ジャンル数', value: new Set(projects.map(p => p.genre)).size, color: 'text-slate-800' },
-              { label: 'AI機能', value: 4, color: 'text-indigo-600' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                <p className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">{label}</p>
-                <p className={`text-3xl font-bold ${color}`}>{value}</p>
-              </div>
-            ))}
-          </div>
+      {/* ── Center Main ── */}
+      <main className="flex-1 overflow-hidden flex flex-col min-w-0">
+        {mode === 'ai-consult' && (
+          <AiConsultPanel
+            {...commonProps}
+            key={pendingPrompt}
+            defaultInput={pendingPrompt}
+          />
         )}
-
-        {/* Content */}
-        {loading ? (
-          <div className="flex items-center justify-center py-32">
-            <div className="w-9 h-9 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-          </div>
-        ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 text-center">
-            <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-5 text-4xl">
-              📋
-            </div>
-            <h2 className="text-lg font-semibold text-slate-700 mb-2">プロジェクトがまだありません</h2>
-            <p className="text-slate-400 text-sm mb-8 max-w-xs">
-              最初のプロジェクトを作成して、AIを使ったサイト企画を始めましょう
-            </p>
-            <button
-              onClick={() => router.push('/projects/new')}
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-sm"
-            >
-              最初のプロジェクトを作成
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {projects.map((project) => (
-              <button
-                key={project.id}
-                onClick={() => router.push(`/projects/${project.id}`)}
-                className="group text-left bg-white rounded-2xl p-6 border border-slate-200 hover:border-indigo-300 hover:shadow-lg transition-all duration-200 cursor-pointer"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-11 h-11 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
-                    <span className="text-white font-bold text-base">
-                      {project.title.charAt(0)}
-                    </span>
-                  </div>
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${genreColor(project.genre)}`}>
-                    {project.genre}
-                  </span>
-                </div>
-
-                <h3 className="font-semibold text-slate-800 text-base mb-1 group-hover:text-indigo-600 transition-colors line-clamp-1">
-                  {project.title}
-                </h3>
-                <p className="text-xs text-slate-400 line-clamp-1">
-                  ターゲット：{project.target}
-                </p>
-
-                <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs text-slate-300">
-                    {new Date(project.created_at).toLocaleDateString('ja-JP')}
-                  </span>
-                  <span className="text-xs text-indigo-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                    開く →
-                  </span>
-                </div>
-              </button>
-            ))}
-
-            {/* Add project card */}
-            <button
-              onClick={() => router.push('/projects/new')}
-              className="text-left bg-white/60 rounded-2xl p-6 border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all duration-200 flex flex-col items-center justify-center min-h-[190px] gap-3 group"
-            >
-              <div className="w-11 h-11 bg-indigo-50 group-hover:bg-indigo-100 rounded-xl flex items-center justify-center transition-colors">
-                <span className="text-indigo-500 text-2xl leading-none font-light">＋</span>
-              </div>
-              <span className="text-slate-400 group-hover:text-indigo-500 font-medium text-sm transition-colors">
-                新しいプロジェクトを追加
-              </span>
-            </button>
-          </div>
+        {mode === 'article'    && <ArticlePanel    {...commonProps} />}
+        {mode === 'app-design' && <AppDesignPanel  {...commonProps} />}
+        {mode === 'shift'      && <ShiftPanel      {...commonProps} />}
+        {mode === 'saved'      && (
+          <SavedItemsPanel
+            items={savedItems}
+            onStatusChange={handleStatusChange}
+            onDelete={handleDelete}
+          />
+        )}
+        {mode === 'prompts' && (
+          <PromptsPanel onUsePrompt={handleUsePrompt} />
         )}
       </main>
+
+      {/* ── Right Panel ── */}
+      <RightPanel
+        savedItems={savedItems}
+        onNavigateToSaved={() => setMode('saved')}
+        onStatusChange={handleStatusChange}
+      />
     </div>
   )
 }
