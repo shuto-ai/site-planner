@@ -38,11 +38,14 @@ const TIMELINE_CFG = [
   { key: 'thisMonth' as const, label: '🗓 今月',   bg: 'bg-emerald-50 border-emerald-200',text: 'text-emerald-700', badge: 'bg-emerald-400' },
 ]
 
+type SimpleTask = { name: string; category: string; priority: string; estimatedTime: string }
+
 type Props = {
   onSave: (title: string, type: string, content: any) => Promise<void>
+  onTaskify?: (tasks: SimpleTask[], context: string) => void
 }
 
-export default function MonetizePanel({ onSave }: Props) {
+export default function MonetizePanel({ onSave, onTaskify }: Props) {
   const [goal,    setGoal]    = useState('')
   const [result,  setResult]  = useState<MonetizeResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -81,6 +84,21 @@ export default function MonetizePanel({ onSave }: Props) {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleTaskify = () => {
+    if (!result || !onTaskify) return
+    const tasks: SimpleTask[] = []
+    if (result.methods?.[0]?.firstStep)
+      tasks.push({ name: result.methods[0].firstStep, category: 'その他', priority: '高', estimatedTime: '1時間' })
+    ;(result.timeline?.today ?? []).forEach(name =>
+      tasks.push({ name, category: 'その他', priority: '高', estimatedTime: '1時間' })
+    )
+    ;(result.timeline?.thisWeek ?? []).slice(0, 3).forEach(name =>
+      tasks.push({ name, category: 'その他', priority: '中', estimatedTime: '2時間' })
+    )
+    if (!tasks.length) { alert('タスクを生成できませんでした'); return }
+    onTaskify(tasks.slice(0, 8), goal.slice(0, 80) || '収益化プラン')
   }
 
   return (
@@ -237,8 +255,16 @@ export default function MonetizePanel({ onSave }: Props) {
               </div>
             )}
 
-            {/* Save */}
-            <div className="flex justify-end">
+            {/* Actions */}
+            <div className="flex gap-3 justify-end flex-wrap">
+              {onTaskify && (
+                <button
+                  onClick={handleTaskify}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors shadow-sm"
+                >
+                  ✅ タスク化する
+                </button>
+              )}
               <button
                 onClick={handleSave}
                 disabled={saving || saved}

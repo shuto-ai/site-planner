@@ -209,7 +209,7 @@ export default function DashboardPage() {
             onNavigateArticle={handleNavigateArticle}
           />
         )}
-        {mode === 'monetize'   && <MonetizePanel   {...commonProps} />}
+        {mode === 'monetize'   && <MonetizePanel onSave={handleSave} onTaskify={handleTaskify} />}
         {mode === 'article'    && (
           <ArticlePanel
             key={pendingTopic}
@@ -232,6 +232,7 @@ export default function DashboardPage() {
             items={savedItems}
             onStatusChange={handleStatusChange}
             onDelete={handleDelete}
+            onTaskify={handleTaskify}
           />
         )}
         {mode === 'prompts'    && (
