@@ -3,6 +3,9 @@ import OpenAI from 'openai'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
+// ── Agent definitions ──────────────────────────────────
+// NOTE: future SSE migration → replace this route with a streaming route
+//       that sends each agent result as an SSE event using the same AGENTS array.
 const AGENTS = [
   {
     id: 'director',
@@ -93,9 +96,40 @@ JSON形式で返してください：
   },
 ]
 
-export async function POST(req: NextRequest) {
-  const { input } = await req.json()
+// ── Single-agent mode (used by sequential UI) ──────────
+// Request:  { input: string, agentId: string }
+// Response: { agent: { id, name, title, message, ...agentSpecificFields } }
+//
+// ── All-agents mode (batch, for future use) ────────────
+// Request:  { input: string }
+// Response: { content: { taskType, summary, agents[], conclusion, todayTasks, ... } }
 
+export async function POST(req: NextRequest) {
+  const { input, agentId } = await req.json()
+
+  // ── Single-agent mode ──────────────────────────────
+  if (agentId) {
+    const agent = AGENTS.find(a => a.id === agentId)
+    if (!agent) {
+      return NextResponse.json({ error: 'Unknown agentId' }, { status: 400 })
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: agent.system },
+        { role: 'user',   content: agent.prompt(input) },
+      ],
+    })
+
+    const parsed = JSON.parse(completion.choices[0].message.content!)
+    return NextResponse.json({
+      agent: { id: agent.id, name: agent.name, title: agent.title, ...parsed },
+    })
+  }
+
+  // ── All-agents mode (parallel batch) ──────────────
   const results = await Promise.all(
     AGENTS.map(async (agent) => {
       const completion = await openai.chat.completions.create({
